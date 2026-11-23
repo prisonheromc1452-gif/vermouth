@@ -1,0 +1,2167 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NKN_OS // Nguyễn Khôi Nguyên — Developer Workstation</title>
+
+  <!-- Google Fonts: JetBrains Mono & Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind CSS CDN for responsive layout utilities -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
+            code: ['"Fira Code"', '"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              bg: '#04060c',
+              surface: '#090e1c',
+              panel: 'rgba(10, 16, 30, 0.78)',
+              cyan: '#00e5ff',
+              green: '#00ff88',
+              purple: '#a855f7',
+              amber: '#fbbf24',
+              rose: '#fb7185',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* =========================================================================
+       CYBERPUNK DESIGN TOKENS & BASE STYLES
+       ========================================================================= */
+    :root {
+      --bg-void: #04060c;
+      --bg-deep: #050811;
+      --bg-panel: rgba(9, 14, 28, 0.8);
+      --neon-cyan: #00e5ff;
+      --neon-green: #00ff88;
+      --neon-purple: #a855f7;
+      --neon-amber: #fbbf24;
+      --border-dim: rgba(0, 229, 255, 0.22);
+      --border-active: rgba(0, 229, 255, 0.72);
+      --mouse-x: 50vw;
+      --mouse-y: 50vh;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-void);
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      overflow-x: hidden;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      selection-background-color: rgba(0, 229, 255, 0.25);
+    }
+
+    ::selection {
+      background: rgba(0, 229, 255, 0.28);
+      color: #ffffff;
+    }
+
+    /* Custom Cyber Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(4, 6, 12, 0.7);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 229, 255, 0.35);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 255, 136, 0.65);
+    }
+
+    /* =========================================================================
+       BACKGROUND LAYERS: MATRIX CANVAS, SPOTLIGHT, GRID & CRT SCANLINES
+       ========================================================================= */
+    #matrix-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.4s ease;
+    }
+    #matrix-canvas.visible {
+      opacity: 0.28;
+    }
+    #matrix-canvas.intense {
+      opacity: 0.52;
+    }
+    #matrix-canvas.hidden-rain {
+      opacity: 0 !important;
+    }
+
+    /* Interactive Cursor Radial Spotlight */
+    .cursor-spotlight {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: radial-gradient(
+        620px circle at var(--mouse-x) var(--mouse-y),
+        rgba(0, 229, 255, 0.085),
+        rgba(168, 85, 247, 0.04) 40%,
+        transparent 70%
+      );
+      transition: opacity 0.4s ease;
+    }
+
+    /* Subtle Cyber Perspective Grid */
+    .cyber-grid-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: radial-gradient(ellipse at center, black 35%, transparent 90%);
+    }
+
+    /* CRT Scanlines Overlay */
+    .scanlines-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0) 0px,
+        rgba(255, 255, 255, 0) 2px,
+        rgba(0, 0, 0, 0.22) 3px,
+        rgba(0, 0, 0, 0.22) 4px
+      );
+      opacity: 0.42;
+      transition: opacity 0.35s ease;
+    }
+    .scanlines-overlay.off {
+      opacity: 0;
+    }
+
+    /* =========================================================================
+       STAGE 1 & 2: INTRO & BOOT SEQUENCE
+       ========================================================================= */
+    #intro-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background-color: var(--bg-void);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+        visibility 0.85s;
+    }
+
+    #intro-screen.fade-out {
+      opacity: 0;
+      transform: scale(1.04);
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .typing-cursor {
+      display: inline-block;
+      width: 0.62em;
+      height: 1.12em;
+      background-color: var(--neon-green);
+      box-shadow: 0 0 12px var(--neon-green), 0 0 24px rgba(0, 255, 136, 0.55);
+      vertical-align: text-bottom;
+      margin-left: 4px;
+      animation: blinkCursor 0.85s steps(1) infinite;
+    }
+
+    @keyframes blinkCursor {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    .intro-glow-text {
+      text-shadow:
+        0 0 14px rgba(0, 229, 255, 0.45),
+        0 0 36px rgba(0, 229, 255, 0.18);
+    }
+
+    .boot-panel {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      pointer-events: none;
+    }
+    .boot-panel.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .boot-progress-fill {
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green), var(--neon-purple));
+      box-shadow: 0 0 14px rgba(0, 229, 255, 0.7);
+      transition: width 0.14s linear;
+    }
+
+    /* =========================================================================
+       STAGE 3: MAIN OS DESKTOP & GLASSMORPHIC TERMINAL WINDOWS
+       ========================================================================= */
+    #desktop-os {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      opacity: 0;
+      transform: scale(0.985);
+      transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+    }
+    #desktop-os.visible {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    /* Cyber Glassmorphic Window */
+    .cyber-window {
+      position: relative;
+      background: var(--bg-panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border-dim);
+      border-radius: 12px;
+      box-shadow:
+        0 14px 40px rgba(0, 0, 0, 0.62),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      transition:
+        border-color 0.28s ease,
+        box-shadow 0.28s ease,
+        transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.55s ease;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cyber-window:hover {
+      border-color: rgba(0, 229, 255, 0.45);
+      box-shadow:
+        0 16px 46px rgba(0, 0, 0, 0.72),
+        0 0 22px rgba(0, 229, 255, 0.09),
+        inset 0 1px 0 rgba(0, 229, 255, 0.12);
+    }
+
+    .cyber-window.window-focused {
+      border-color: var(--border-active);
+      box-shadow:
+        0 20px 52px rgba(0, 0, 0, 0.78),
+        0 0 28px rgba(0, 229, 255, 0.16),
+        inset 0 1px 0 rgba(0, 229, 255, 0.22);
+    }
+
+    /* Staggered Window Entrance Animation */
+    .cyber-window.stagger-hidden {
+      opacity: 0;
+      transform: translateY(26px) scale(0.975);
+    }
+    .cyber-window.stagger-visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Minimized Window State */
+    .cyber-window.minimized .window-body {
+      display: none;
+    }
+
+    /* Maximized Modal-like State on Desktop */
+    .cyber-window.maximized {
+      position: fixed !important;
+      inset: 4.5rem 1.25rem 1.25rem 1.25rem !important;
+      z-index: 45 !important;
+      max-height: none !important;
+      height: calc(100vh - 5.75rem) !important;
+      width: auto !important;
+      grid-column: auto !important;
+      animation: popInWindow 0.25s ease;
+    }
+
+    @keyframes popInWindow {
+      from { transform: scale(0.96); opacity: 0.85; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Window Title Bar */
+    .window-header {
+      background: linear-gradient(
+        90deg,
+        rgba(0, 229, 255, 0.08),
+        rgba(15, 23, 42, 0.88) 45%,
+        rgba(168, 85, 247, 0.07)
+      );
+      border-bottom: 1px solid rgba(0, 229, 255, 0.16);
+      user-select: none;
+    }
+
+    /* Glitch Effect for Brand / Title */
+    .glitch-text {
+      position: relative;
+      display: inline-block;
+    }
+    .glitch-text::before,
+    .glitch-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .glitch-text:hover::before,
+    .glitch-text.glitch-pulse::before {
+      color: var(--neon-cyan);
+      opacity: 0.78;
+      clip-path: polygon(0 10%, 100% 10%, 100% 42%, 0 42%);
+      transform: translate(-2px, -1px);
+      animation: glitchJitter 0.28s steps(2) infinite;
+    }
+    .glitch-text:hover::after,
+    .glitch-text.glitch-pulse::after {
+      color: var(--neon-purple);
+      opacity: 0.78;
+      clip-path: polygon(0 58%, 100% 58%, 100% 88%, 0 88%);
+      transform: translate(2px, 1px);
+      animation: glitchJitter 0.32s steps(2) reverse infinite;
+    }
+
+    @keyframes glitchJitter {
+      0% { transform: translate(-2px, 0); }
+      50% { transform: translate(2px, -1px); }
+      100% { transform: translate(-1px, 1px); }
+    }
+
+    /* Cybernetic Avatar Ring */
+    .avatar-ring {
+      position: relative;
+      background: radial-gradient(circle at 30% 30%, rgba(0, 229, 255, 0.2), rgba(9, 14, 28, 0.95));
+      box-shadow:
+        0 0 18px rgba(0, 229, 255, 0.35),
+        inset 0 0 16px rgba(168, 85, 247, 0.28);
+    }
+    .avatar-ring::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 9999px;
+      border: 1.5px dashed rgba(0, 255, 136, 0.55);
+      animation: spinSlow 16s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes spinSlow {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Animated Skill Bar Fill */
+    .skill-fill {
+      width: 0%;
+      transition: width 1.3s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    /* Syntax Highlighting Palette */
+    .tok-kw { color: #00e5ff; font-weight: 500; }
+    .tok-str { color: #00ff88; }
+    .tok-fn { color: #c084fc; }
+    .tok-cls { color: #38bdf8; font-weight: 600; }
+    .tok-num { color: #fbbf24; }
+    .tok-com { color: #64748b; font-style: italic; }
+    .tok-prop { color: #93c5fd; }
+    .tok-tag { color: #f472b6; }
+    .tok-op { color: #94a3b8; }
+
+    /* Code Editor Line Numbers */
+    .code-line {
+      display: grid;
+      grid-template-columns: 2.4rem 1fr;
+      gap: 0.75rem;
+      padding: 0.08rem 0.5rem;
+      border-radius: 4px;
+      transition: background-color 0.15s ease;
+    }
+    .code-line:hover {
+      background-color: rgba(0, 229, 255, 0.06);
+    }
+    .line-num {
+      text-align: right;
+      color: #475569;
+      user-select: none;
+      font-size: 0.75rem;
+    }
+
+    /* Pulsing Online Dot */
+    .pulse-dot {
+      box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.75);
+      animation: pulseNeon 2s infinite;
+    }
+    @keyframes pulseNeon {
+      0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+    }
+
+    /* Control Pill Buttons */
+    .cyber-btn {
+      transition: all 0.2s ease;
+    }
+    .cyber-btn:hover {
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.28);
+      transform: translateY(-1px);
+    }
+    .cyber-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Maximize Backdrop */
+    #maximize-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      background: rgba(4, 6, 12, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+    }
+    #maximize-backdrop.active {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-cyber-bg text-slate-200 selection:bg-cyan-500/30 selection:text-white">
+  <!-- Background Matrix Rain Canvas -->
+  <canvas id="matrix-canvas" aria-hidden="true"></canvas>
+
+  <!-- Subtle Background Grid & Interactive Cursor Spotlight -->
+  <div class="cyber-grid-bg" aria-hidden="true"></div>
+  <div class="cursor-spotlight" aria-hidden="true"></div>
+
+  <!-- CRT Scanlines Overlay -->
+  <div id="scanlines-overlay" class="scanlines-overlay" aria-hidden="true"></div>
+
+  <!-- Backdrop for Maximized Window -->
+  <div id="maximize-backdrop" aria-hidden="true"></div>
+
+  <!-- =========================================================================
+       STAGE 1 & 2: INTRO WELCOME SCREEN & SYSTEM BOOT SEQUENCE
+       ========================================================================= -->
+  <section
+    id="intro-screen"
+    role="dialog"
+    aria-label="Màn hình chào mừng Nguyễn Khôi Nguyên"
+  >
+    <!-- Top-Right Minimal Controls -->
+    <div class="fixed top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2 sm:gap-3 z-70">
+      <button
+        id="intro-sound-btn"
+        type="button"
+        class="cyber-btn px-3 py-2 rounded-lg border border-cyan-500/30 bg-slate-950/80 text-xs font-medium tracking-wider text-slate-300 hover:border-cyan-400 hover:text-cyan-300 flex items-center gap-1.5"
+        aria-label="Bật hoặc tắt âm thanh hệ thống"
+      >
+        <span id="intro-sound-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+        <span id="intro-sound-label">[SOUND: OFF]</span>
+      </button>
+
+      <button
+        id="skip-intro-btn"
+        type="button"
+        class="cyber-btn px-3 py-2 rounded-lg border border-emerald-500/35 bg-emerald-950/30 text-xs font-medium tracking-wider text-emerald-300 hover:border-emerald-400 hover:bg-emerald-900/40"
+      >
+        [SKIP INTRO &gt;&gt;]
+      </button>
+    </div>
+
+    <!-- Centered Terminal Greeting -->
+    <div class="w-full max-w-3xl mx-auto text-center px-2">
+      <div class="inline-flex items-center gap-2 px-3 py-1 mb-6 rounded-full border border-cyan-500/25 bg-cyan-950/20 text-[11px] sm:text-xs text-cyan-400/90 tracking-widest uppercase">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>TERMINAL_SESSION // SECURE_LINK_READY</span>
+      </div>
+
+      <!-- Exact Welcome Phrase Typed Out -->
+      <h1
+        class="intro-glow-text text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-snug min-h-[3.5rem] sm:min-h-[4.2rem]"
+      >
+        <span class="text-emerald-400 mr-2 select-none">&gt;</span><span id="intro-main-text"></span><span id="intro-cursor" class="typing-cursor" aria-hidden="true"></span>
+      </h1>
+
+      <!-- Secondary Sub-status Line -->
+      <p
+        id="intro-sub-text"
+        class="mt-4 text-xs sm:text-sm md:text-base text-cyan-300/90 tracking-wide min-h-[1.5rem]"
+      ></p>
+
+      <!-- Stage 2: High-Tech Boot Sequence Panel -->
+      <div
+        id="boot-panel"
+        class="boot-panel mt-8 w-full max-w-2xl mx-auto text-left rounded-xl border border-cyan-500/30 bg-slate-950/85 backdrop-blur-md p-4 sm:p-5 shadow-[0_0_40px_rgba(0,229,255,0.12)]"
+      >
+        <div class="flex items-center justify-between text-[11px] sm:text-xs text-cyan-400 border-b border-cyan-500/20 pb-2 mb-3">
+          <span class="font-semibold tracking-wider">NKN_OS KERNEL BOOTLOADER v2.6</span>
+          <span id="boot-percent" class="font-bold text-emerald-400">0%</span>
+        </div>
+
+        <!-- Scrolling Boot Logs -->
+        <div
+          id="boot-logs"
+          class="font-code text-[11px] sm:text-xs leading-relaxed text-slate-300 h-32 sm:h-36 overflow-y-auto space-y-1 pr-1"
+        ></div>
+
+        <!-- Glowing Progress Bar -->
+        <div class="mt-4">
+          <div class="w-full h-2 rounded-full bg-slate-900 border border-cyan-500/25 overflow-hidden">
+            <div id="boot-progress-bar" class="boot-progress-fill h-full w-0 rounded-full"></div>
+          </div>
+          <div class="mt-2 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400">
+            <span id="boot-stage-label">Initializing neural interface...</span>
+            <span class="text-purple-400">MEM: 16384MB OK</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       STAGE 3: MAIN CYBERPUNK DEVELOPER OS WORKSTATION
+       ========================================================================= -->
+  <div id="desktop-os" class="flex flex-col min-h-screen">
+    <!-- Top OS Taskbar / Status Bar -->
+    <header
+      class="sticky top-0 z-30 w-full border-b border-cyan-500/20 bg-slate-950/80 backdrop-blur-xl px-3 sm:px-5 py-2.5"
+    >
+      <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+        <!-- Left: OS Brand & Active Status -->
+        <div class="flex items-center gap-2.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot"></span>
+          <button
+            id="brand-glitch"
+            type="button"
+            data-text="NKN_OS // v2.6"
+            class="glitch-text text-sm sm:text-base font-bold tracking-wider text-cyan-300 hover:text-white focus:outline-none"
+            title="Nguyễn Khôi Nguyên Operating System"
+          >
+            NKN_OS // v2.6
+          </button>
+          <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+            DEV_WORKSTATION
+          </span>
+        </div>
+
+        <!-- Center: Live System Clock & Uptime -->
+        <div class="hidden sm:flex items-center gap-4 text-xs text-slate-300 bg-slate-900/70 px-3.5 py-1.5 rounded-lg border border-cyan-500/15">
+          <div class="flex items-center gap-1.5">
+            <span class="text-cyan-400">SYS_TIME:</span>
+            <span id="os-clock" class="font-semibold text-white tabular-nums">--:--:--</span>
+          </div>
+          <span class="text-slate-600">|</span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-emerald-400">UPTIME:</span>
+            <span id="os-uptime" class="font-semibold text-emerald-300 tabular-nums">00:00:00</span>
+          </div>
+        </div>
+
+        <!-- Right: Interactive OS Controls -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <button
+            id="toggle-sound-btn"
+            type="button"
+            class="cyber-btn px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900/80 text-[11px] sm:text-xs text-slate-300 hover:border-cyan-400 hover:text-cyan-300 flex items-center gap-1.5"
+            title="Bật/tắt âm thanh giao diện (Web Audio API)"
+          >
+            <span id="os-sound-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+            <span class="hidden sm:inline">SOUND:</span>
+            <span id="os-sound-state" class="font-semibold">OFF</span>
+          </button>
+
+          <button
+            id="toggle-matrix-btn"
+            type="button"
+            class="cyber-btn px-2.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-950/30 text-[11px] sm:text-xs text-emerald-300 hover:border-emerald-400 flex items-center gap-1"
+            title="Bật/tắt hiệu ứng Matrix Rain"
+          >
+            <span>MATRIX:</span>
+            <span id="os-matrix-state" class="font-semibold">ON</span>
+          </button>
+
+          <button
+            id="toggle-scanline-btn"
+            type="button"
+            class="cyber-btn px-2.5 py-1.5 rounded-lg border border-purple-500/40 bg-purple-950/30 text-[11px] sm:text-xs text-purple-300 hover:border-purple-400 flex items-center gap-1"
+            title="Bật/tắt hiệu ứng CRT Scanlines"
+          >
+            <span class="hidden md:inline">CRT:</span>
+            <span id="os-scanline-state" class="font-semibold">ON</span>
+          </button>
+
+          <button
+            id="replay-intro-btn"
+            type="button"
+            class="cyber-btn px-2.5 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/30 text-[11px] sm:text-xs text-cyan-300 hover:bg-cyan-900/40 hover:border-cyan-300 font-medium"
+            title="Phát lại màn hình chào mừng & khởi động"
+          >
+            &#8635; <span class="hidden sm:inline">Replay</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Responsive Bento Workstation Grid -->
+    <main class="flex-1 w-full max-w-[1600px] mx-auto p-3 sm:p-5 lg:p-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-stretch">
+        <!-- ===============================================================
+             WINDOW 1: SYSTEM IDENTITY (user_profile.sys)
+             =============================================================== -->
+        <article
+          id="win-profile"
+          data-window="profile"
+          class="cyber-window stagger-hidden lg:col-span-5"
+        >
+          <!-- Window Title Bar -->
+          <div class="window-header px-3.5 py-2.5 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  data-action="minimize"
+                  class="w-3 h-3 rounded-full bg-amber-400/80 hover:bg-amber-300 transition-colors"
+                  title="Thu gọn cửa sổ"
+                  aria-label="Thu gọn user_profile.sys"
+                ></button>
+                <button
+                  type="button"
+                  data-action="maximize"
+                  class="w-3 h-3 rounded-full bg-emerald-400/80 hover:bg-emerald-300 transition-colors"
+                  title="Phóng to cửa sổ"
+                  aria-label="Phóng to user_profile.sys"
+                ></button>
+                <span class="w-3 h-3 rounded-full bg-cyan-400/60"></span>
+              </div>
+              <span class="ml-1.5 text-xs font-semibold text-cyan-300 truncate">
+                user_profile.sys — SYSTEM IDENTITY
+              </span>
+            </div>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+              VERIFIED
+            </span>
+          </div>
+
+          <!-- Window Body -->
+          <div class="window-body p-4 sm:p-5 flex-1 flex flex-col justify-between gap-5">
+            <!-- Header Profile & Cybernetic Avatar -->
+            <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              <div class="avatar-ring w-20 h-20 sm:w-24 sm:h-24 rounded-full flex flex-col items-center justify-center shrink-0 border border-cyan-400/60">
+                <span class="text-2xl sm:text-3xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-br from-cyan-300 via-emerald-300 to-purple-400">
+                  NKN
+                </span>
+                <span class="text-[9px] text-cyan-400/80 tracking-widest mt-0.5">ID#2026</span>
+              </div>
+
+              <div class="w-full space-y-1.5 text-xs sm:text-[13px]">
+                <div class="flex flex-wrap items-baseline gap-x-2">
+                  <span class="text-cyan-400 font-semibold w-20 shrink-0">USER:</span>
+                  <span class="text-white font-bold text-sm sm:text-base tracking-wide">Nguyen Khoi Nguyen</span>
+                </div>
+                <div class="flex flex-wrap items-baseline gap-x-2">
+                  <span class="text-cyan-400 font-semibold w-20 shrink-0">ROLE:</span>
+                  <span class="text-purple-300 font-medium">Developer</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-2">
+                  <span class="text-cyan-400 font-semibold w-20 shrink-0">STATUS:</span>
+                  <span class="inline-flex items-center gap-1.5 text-emerald-300 font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                    ONLINE
+                  </span>
+                </div>
+                <div class="flex flex-wrap items-baseline gap-x-2">
+                  <span class="text-cyan-400 font-semibold w-20 shrink-0">INTEREST:</span>
+                  <span class="text-slate-300">Programming <span class="text-cyan-500">|</span> Technology <span class="text-cyan-500">|</span> Computer Science</span>
+                </div>
+                <div class="flex flex-wrap items-baseline gap-x-2">
+                  <span class="text-cyan-400 font-semibold w-20 shrink-0">SYSTEM:</span>
+                  <span class="text-emerald-400/90">All systems operational</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Highlighted Manifesto / Personal Quote -->
+            <div class="relative rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/35 via-slate-900/70 to-purple-950/35 p-3.5 sm:p-4">
+              <div class="text-[10px] uppercase tracking-widest text-cyan-400/80 mb-1.5 flex items-center gap-1.5">
+                <span class="text-emerald-400">//</span> CORE_MANIFESTO.TXT
+              </div>
+              <p class="text-xs sm:text-sm text-white font-medium leading-relaxed italic">
+                “Không ngừng học hỏi. Không ngừng sáng tạo. Kiến tạo tương lai bằng công nghệ.”
+              </p>
+            </div>
+
+            <!-- Core Tech Stack & Animated Neon Skill Meters -->
+            <div class="space-y-2.5">
+              <div class="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-400">
+                <span>CORE_TECH_STACK // MODULES</span>
+                <span class="text-cyan-400">6 ACTIVE</span>
+              </div>
+
+              <div id="skill-meters" class="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2.5 text-xs">
+                <!-- HTML/CSS -->
+                <div class="space-y-1">
+                  <div class="flex justify-between">
+                    <span class="text-slate-200">HTML / CSS</span>
+                    <span class="text-cyan-300 font-semibold">94%</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-slate-800/90 overflow-hidden">
+                    <div class="skill-fill h-full rounded-full bg-cyan-400 text-cyan-400" data-width="94%"></div>
+                  </div>
+                </div>
+
+                <!-- JavaScript -->
+                <div class="space-y-1">
+                  <div class="flex justify-between">
+                    <span class="text-slate-200">JavaScript</span>
+                    <span class="text-emerald-300 font-semibold">90%</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-slate-800/90 overflow-hidden">
+                    <div class="skill-fill h-full rounded-full bg-emerald-400 text-emerald-400" data-width="90%"></div>
+                  </div>
+                </div>
+
+                <!-- Python -->
+                <div class="space-y-1">
+                  <div class="flex justify-between">
+                    <span class="text-slate-200">Python</span>
+                    <span class="text-purple-300 font-semibold">88%</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-slate-800/90 overflow-hidden">
+                    <div class="skill-fill h-full rounded-full bg-purple-400 text-purple-400" data-width="88%"></div>
+                  </div>
+                </div>
+
+                <!-- C++ -->
+                <div class="space-y-1">
+                  <div class="flex justify-between">
+                    <span class="text-slate-200">C++</span>
+                    <span class="text-cyan-300 font-semibold">82%</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-slate-800/90 overflow-hidden">
+                    <div class="skill-fill h-full rounded-full bg-cyan-400 text-cyan-400" data-width="82%"></div>
+                  </div>
+                </div>
+
+                <!-- Algorithms -->
+                <div class="space-y-1">
+                  <div class="flex justify-between">
+                    <span class="text-slate-200">Algorithms</span>
+                    <span class="text-emerald-300 font-semibold">86%</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-slate-800/90 overflow-hidden">
+                    <div class="skill-fill h-full rounded-full bg-emerald-400 text-emerald-400" data-width="86%"></div>
+                  </div>
+                </div>
+
+                <!-- UI/UX Design -->
+                <div class="space-y-1">
+                  <div class="flex justify-between">
+                    <span class="text-slate-200">UI/UX Design</span>
+                    <span class="text-purple-300 font-semibold">91%</span>
+                  </div>
+                  <div class="h-1.5 rounded-full bg-slate-800/90 overflow-hidden">
+                    <div class="skill-fill h-full rounded-full bg-purple-400 text-purple-400" data-width="91%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ===============================================================
+             WINDOW 2: INTERACTIVE TERMINAL (bash — nkn@cyber-os:~)
+             =============================================================== -->
+        <article
+          id="win-terminal"
+          data-window="terminal"
+          class="cyber-window stagger-hidden lg:col-span-7"
+        >
+          <!-- Window Title Bar -->
+          <div class="window-header px-3.5 py-2.5 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  data-action="minimize"
+                  class="w-3 h-3 rounded-full bg-amber-400/80 hover:bg-amber-300 transition-colors"
+                  title="Thu gọn cửa sổ"
+                  aria-label="Thu gọn Terminal"
+                ></button>
+                <button
+                  type="button"
+                  data-action="maximize"
+                  class="w-3 h-3 rounded-full bg-emerald-400/80 hover:bg-emerald-300 transition-colors"
+                  title="Phóng to cửa sổ"
+                  aria-label="Phóng to Terminal"
+                ></button>
+                <span class="w-3 h-3 rounded-full bg-purple-400/60"></span>
+              </div>
+              <span class="ml-1.5 text-xs font-semibold text-emerald-300 truncate">
+                bash — nkn@cyber-os:~
+              </span>
+            </div>
+            <span class="text-[10px] text-slate-400 shrink-0">TTY1 // INTERACTIVE</span>
+          </div>
+
+          <!-- Window Body -->
+          <div class="window-body flex-1 flex flex-col bg-slate-950/60">
+            <!-- Quick Command Chips -->
+            <div class="px-3.5 py-2 border-b border-cyan-500/15 flex flex-wrap items-center gap-1.5 bg-slate-900/50">
+              <span class="text-[10px] text-slate-400 uppercase tracking-wider mr-1">Quick_Cmd:</span>
+              <button type="button" data-cmd="help" class="cmd-chip px-2 py-1 rounded-md text-[11px] bg-cyan-950/50 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400 transition-colors">help</button>
+              <button type="button" data-cmd="about" class="cmd-chip px-2 py-1 rounded-md text-[11px] bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400 transition-colors">about</button>
+              <button type="button" data-cmd="skills" class="cmd-chip px-2 py-1 rounded-md text-[11px] bg-purple-950/50 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:border-purple-400 transition-colors">skills</button>
+              <button type="button" data-cmd="projects" class="cmd-chip px-2 py-1 rounded-md text-[11px] bg-cyan-950/50 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400 transition-colors">projects</button>
+              <button type="button" data-cmd="neofetch" class="cmd-chip px-2 py-1 rounded-md text-[11px] bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-400 transition-colors">neofetch</button>
+              <button type="button" data-cmd="matrix" class="cmd-chip px-2 py-1 rounded-md text-[11px] bg-slate-900 border border-slate-700 text-slate-300 hover:border-emerald-400 hover:text-emerald-300 transition-colors">matrix</button>
+              <button type="button" data-cmd="clear" class="cmd-chip px-2 py-1 rounded-md text-[11px] bg-slate-900 border border-slate-700 text-slate-400 hover:border-rose-400 hover:text-rose-300 transition-colors">clear</button>
+            </div>
+
+            <!-- Terminal Output Log -->
+            <div
+              id="terminal-output"
+              class="flex-1 p-3.5 sm:p-4 font-code text-xs sm:text-[13px] leading-relaxed overflow-y-auto h-72 sm:h-80 lg:h-[340px] space-y-2 cursor-text"
+              aria-live="polite"
+            ></div>
+
+            <!-- Interactive Prompt Input -->
+            <form
+              id="terminal-form"
+              class="px-3.5 py-2.5 border-t border-cyan-500/20 bg-slate-950/80 flex items-center gap-2"
+              autocomplete="off"
+            >
+              <span class="text-xs sm:text-[13px] font-semibold shrink-0 select-none">
+                <span class="text-emerald-400">nkn@cyber-os</span><span class="text-slate-400">:</span><span class="text-cyan-400">~</span><span class="text-purple-400">$</span>
+              </span>
+              <input
+                id="terminal-input"
+                type="text"
+                placeholder="Nhập lệnh (gõ 'help' để xem danh sách)..."
+                class="w-full bg-transparent text-xs sm:text-[13px] text-white placeholder-slate-500 focus:outline-none font-code"
+                aria-label="Nhập lệnh Terminal"
+              />
+              <button
+                type="submit"
+                class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 shrink-0"
+              >
+                RUN
+              </button>
+            </form>
+          </div>
+        </article>
+
+        <!-- ===============================================================
+             WINDOW 3: CYBER CODE EDITOR (workspace — NKN_IDE)
+             =============================================================== -->
+        <article
+          id="win-editor"
+          data-window="editor"
+          class="cyber-window stagger-hidden lg:col-span-7"
+        >
+          <!-- Window Title Bar -->
+          <div class="window-header px-3.5 py-2.5 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  data-action="minimize"
+                  class="w-3 h-3 rounded-full bg-amber-400/80 hover:bg-amber-300 transition-colors"
+                  title="Thu gọn cửa sổ"
+                  aria-label="Thu gọn NKN_IDE"
+                ></button>
+                <button
+                  type="button"
+                  data-action="maximize"
+                  class="w-3 h-3 rounded-full bg-emerald-400/80 hover:bg-emerald-300 transition-colors"
+                  title="Phóng to cửa sổ"
+                  aria-label="Phóng to NKN_IDE"
+                ></button>
+                <span class="w-3 h-3 rounded-full bg-cyan-400/60"></span>
+              </div>
+              <span class="ml-1.5 text-xs font-semibold text-purple-300 truncate">
+                workspace — NKN_IDE
+              </span>
+            </div>
+
+            <!-- Run Code Action Button -->
+            <button
+              id="run-code-btn"
+              type="button"
+              class="cyber-btn px-3 py-1 rounded-md text-[11px] font-semibold bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30 flex items-center gap-1.5 shrink-0"
+              title="Chạy tệp mã nguồn hiện tại và xuất kết quả ra Terminal"
+            >
+              <span>&#9654;</span>
+              <span>Run Code</span>
+            </button>
+          </div>
+
+          <!-- Window Body -->
+          <div class="window-body flex-1 flex flex-col">
+            <!-- Editor Tabs -->
+            <div
+              id="editor-tabs"
+              class="flex items-center overflow-x-auto border-b border-cyan-500/15 bg-slate-950/70 px-2 pt-2 gap-1"
+              role="tablist"
+            >
+              <button
+                type="button"
+                role="tab"
+                data-tab="developer.py"
+                class="editor-tab px-3 py-1.5 rounded-t-lg text-xs font-medium border-t border-x border-cyan-500/40 bg-slate-900/90 text-cyan-300 shrink-0"
+              >
+                developer.py
+              </button>
+              <button
+                type="button"
+                role="tab"
+                data-tab="core_engine.js"
+                class="editor-tab px-3 py-1.5 rounded-t-lg text-xs font-medium border-t border-x border-transparent text-slate-400 hover:text-slate-200 shrink-0"
+              >
+                core_engine.js
+              </button>
+              <button
+                type="button"
+                role="tab"
+                data-tab="interface.html"
+                class="editor-tab px-3 py-1.5 rounded-t-lg text-xs font-medium border-t border-x border-transparent text-slate-400 hover:text-slate-200 shrink-0"
+              >
+                interface.html
+              </button>
+              <button
+                type="button"
+                role="tab"
+                data-tab="neon_theme.css"
+                class="editor-tab px-3 py-1.5 rounded-t-lg text-xs font-medium border-t border-x border-transparent text-slate-400 hover:text-slate-200 shrink-0"
+              >
+                neon_theme.css
+              </button>
+            </div>
+
+            <!-- Syntax-Highlighted Code Container -->
+            <div
+              id="code-display"
+              class="flex-1 p-3 sm:p-4 font-code text-xs sm:text-[13px] leading-relaxed overflow-auto bg-slate-950/50 h-72 sm:h-80"
+            ></div>
+
+            <!-- IDE Status Footer -->
+            <div class="px-3.5 py-1.5 border-t border-cyan-500/15 bg-slate-950/85 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400">
+              <div class="flex items-center gap-3">
+                <span id="editor-lang" class="text-cyan-400 font-semibold">Python 3.12</span>
+                <span>UTF-8</span>
+                <span class="hidden sm:inline">LF</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span class="text-emerald-300">No Syntax Errors</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ===============================================================
+             WINDOW 4: LIVE TELEMETRY & SYSTEM MONITOR (sys_monitor.log)
+             =============================================================== -->
+        <article
+          id="win-monitor"
+          data-window="monitor"
+          class="cyber-window stagger-hidden lg:col-span-5"
+        >
+          <!-- Window Title Bar -->
+          <div class="window-header px-3.5 py-2.5 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  data-action="minimize"
+                  class="w-3 h-3 rounded-full bg-amber-400/80 hover:bg-amber-300 transition-colors"
+                  title="Thu gọn cửa sổ"
+                  aria-label="Thu gọn sys_monitor.log"
+                ></button>
+                <button
+                  type="button"
+                  data-action="maximize"
+                  class="w-3 h-3 rounded-full bg-emerald-400/80 hover:bg-emerald-300 transition-colors"
+                  title="Phóng to cửa sổ"
+                  aria-label="Phóng to sys_monitor.log"
+                ></button>
+                <span class="w-3 h-3 rounded-full bg-emerald-400/60"></span>
+              </div>
+              <span class="ml-1.5 text-xs font-semibold text-cyan-300 truncate">
+                sys_monitor.log — LIVE TELEMETRY
+              </span>
+            </div>
+            <span class="text-[10px] text-emerald-300 flex items-center gap-1 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              60Hz
+            </span>
+          </div>
+
+          <!-- Window Body -->
+          <div class="window-body p-4 flex-1 flex flex-col gap-4">
+            <!-- Real-time Canvas Waveform Graph -->
+            <div class="rounded-xl border border-cyan-500/20 bg-slate-950/75 p-3">
+              <div class="flex items-center justify-between text-[10px] sm:text-[11px] mb-2">
+                <span class="text-slate-300 font-semibold">CPU &amp; NEURAL ENGINE LOAD</span>
+                <div class="flex items-center gap-3">
+                  <span class="flex items-center gap-1 text-cyan-300">
+                    <span class="w-2 h-0.5 bg-cyan-400 inline-block"></span> CPU
+                  </span>
+                  <span class="flex items-center gap-1 text-emerald-300">
+                    <span class="w-2 h-0.5 bg-emerald-400 inline-block"></span> NEURAL
+                  </span>
+                </div>
+              </div>
+              <div id="telemetry-canvas-wrap" class="w-full h-28 sm:h-32 relative">
+                <canvas id="telemetry-canvas" class="w-full h-full block"></canvas>
+              </div>
+            </div>
+
+            <!-- Live Flickering Telemetry Metrics -->
+            <div class="grid grid-cols-2 gap-2.5 text-xs">
+              <div class="rounded-lg border border-cyan-500/20 bg-slate-900/65 p-2.5">
+                <div class="text-[10px] text-slate-400">CPU USAGE</div>
+                <div id="metric-cpu" class="text-base sm:text-lg font-bold text-cyan-300 tabular-nums mt-0.5">24.8%</div>
+              </div>
+              <div class="rounded-lg border border-emerald-500/20 bg-slate-900/65 p-2.5">
+                <div class="text-[10px] text-slate-400">RAM ALLOCATION</div>
+                <div id="metric-ram" class="text-base sm:text-lg font-bold text-emerald-300 tabular-nums mt-0.5">6.4 / 16 GB</div>
+              </div>
+              <div class="rounded-lg border border-purple-500/20 bg-slate-900/65 p-2.5">
+                <div class="text-[10px] text-slate-400">NET LATENCY</div>
+                <div id="metric-ping" class="text-base sm:text-lg font-bold text-purple-300 tabular-nums mt-0.5">11 ms</div>
+              </div>
+              <div class="rounded-lg border border-amber-500/20 bg-slate-900/65 p-2.5">
+                <div class="text-[10px] text-slate-400">ACTIVE THREADS</div>
+                <div id="metric-threads" class="text-base sm:text-lg font-bold text-amber-300 tabular-nums mt-0.5">128</div>
+              </div>
+            </div>
+
+            <!-- Scrolling Live System Event Feed -->
+            <div class="flex-1 flex flex-col rounded-xl border border-cyan-500/15 bg-slate-950/75 p-3 min-h-[110px]">
+              <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                <span>LIVE_KERNEL_FEED</span>
+                <span class="text-cyan-400/80">SIMULATION_MODE</span>
+              </div>
+              <div
+                id="live-event-feed"
+                class="font-code text-[11px] leading-relaxed space-y-1 overflow-y-auto max-h-28 pr-1 text-slate-300"
+              ></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <!-- Minimal Footer Status Strip -->
+    <footer class="w-full border-t border-cyan-500/15 bg-slate-950/70 backdrop-blur-md px-4 py-2.5 text-[11px] text-slate-400">
+      <div class="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+        <div>
+          <span class="text-cyan-400 font-semibold">NKN_OS</span> // Designed &amp; Engineered for
+          <span class="text-white font-medium">Nguyễn Khôi Nguyên</span>
+        </div>
+        <div class="flex items-center gap-3 text-[10px] sm:text-[11px]">
+          <span class="text-emerald-400">&#9679; UI Simulation Environment</span>
+          <span class="text-slate-600">|</span>
+          <span>Pure HTML5 / CSS3 / Vanilla JS</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- =========================================================================
+       APPLICATION SCRIPT: AUDIO ENGINE, MATRIX RAIN, BOOT SEQUENCE, TERMINAL,
+       SYNTAX-HIGHLIGHTED IDE & TELEMETRY MONITOR
+       ========================================================================= -->
+  <script>
+    (() => {
+      'use strict';
+
+      /* =======================================================================
+         1. WEB AUDIO API SOUND SYNTHESIZER (Default OFF, Purely Synthesized)
+         ======================================================================= */
+      class CyberAudioEngine {
+        constructor() {
+          this.enabled = false;
+          this.ctx = null;
+        }
+
+        ensureContext() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+            }
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+          }
+        }
+
+        toggle() {
+          this.enabled = !this.enabled;
+          if (this.enabled) {
+            this.ensureContext();
+            this.playChime();
+          }
+          return this.enabled;
+        }
+
+        playKeyTick(pitch = 640) {
+          if (!this.enabled) return;
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(pitch + (Math.random() * 90 - 45), now);
+            gain.gain.setValueAtTime(0.025, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.035);
+          } catch (_) {}
+        }
+
+        playClick() {
+          if (!this.enabled) return;
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(920, now);
+            osc.frequency.exponentialRampToValueAtTime(420, now + 0.045);
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.055);
+          } catch (_) {}
+        }
+
+        playChime() {
+          if (!this.enabled) return;
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const notes = [440, 554.37, 659.25, 880]; // A major cyber triad
+            notes.forEach((freq, idx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+              gain.gain.setValueAtTime(0.0001, now + idx * 0.06);
+              gain.gain.linearRampToValueAtTime(0.04, now + idx * 0.06 + 0.03);
+              gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.06 + 0.45);
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              osc.start(now + idx * 0.06);
+              osc.stop(now + idx * 0.06 + 0.48);
+            });
+          } catch (_) {}
+        }
+
+        playBootComplete() {
+          if (!this.enabled) return;
+          try {
+            this.ensureContext();
+            if (!this.ctx) return;
+            const now = this.ctx.currentTime;
+            const chord = [261.63, 329.63, 392.0, 523.25, 659.25];
+            chord.forEach((freq, idx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+              osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+              gain.gain.setValueAtTime(0.001, now + idx * 0.05);
+              gain.gain.linearRampToValueAtTime(0.032, now + idx * 0.05 + 0.08);
+              gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              osc.start(now + idx * 0.05);
+              osc.stop(now + 0.95);
+            });
+          } catch (_) {}
+        }
+      }
+
+      const audio = new CyberAudioEngine();
+
+      /* =======================================================================
+         2. MATRIX RAIN CANVAS ENGINE (60fps, Responsive & Toggleable)
+         ======================================================================= */
+      const matrixCanvas = document.getElementById('matrix-canvas');
+      const matrixCtx = matrixCanvas.getContext('2d');
+      const matrixChars =
+        'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン01010110<>/{}[]$#%&@*+=~';
+      let matrixDrops = [];
+      let matrixFontSize = 15;
+      let matrixRunning = true;
+      let matrixIntense = false;
+      let matrixLastFrame = 0;
+
+      function resizeMatrixCanvas() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        matrixCanvas.width = Math.floor(width * dpr);
+        matrixCanvas.height = Math.floor(height * dpr);
+        matrixCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        matrixFontSize = width < 640 ? 13 : 15;
+        const columns = Math.ceil(width / matrixFontSize);
+        matrixDrops = Array.from({ length: columns }, () =>
+          Math.floor(Math.random() * -(height / matrixFontSize))
+        );
+      }
+
+      function renderMatrixRain(timestamp) {
+        requestAnimationFrame(renderMatrixRain);
+        if (!matrixRunning) return;
+        // Throttle to ~28fps for crisp retro matrix cadence & low CPU usage
+        if (timestamp - matrixLastFrame < 36) return;
+        matrixLastFrame = timestamp;
+
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        matrixCtx.fillStyle = 'rgba(4, 6, 12, 0.085)';
+        matrixCtx.fillRect(0, 0, width, height);
+
+        matrixCtx.font = `600 ${matrixFontSize}px "JetBrains Mono", monospace`;
+
+        for (let i = 0; i < matrixDrops.length; i++) {
+          const text = matrixChars.charAt(Math.floor(Math.random() * matrixChars.length));
+          const x = i * matrixFontSize;
+          const y = matrixDrops[i] * matrixFontSize;
+
+          // Mix neon green and occasional bright cyan glyphs
+          if (Math.random() > 0.84) {
+            matrixCtx.fillStyle = '#00e5ff';
+          } else {
+            matrixCtx.fillStyle = '#00ff88';
+          }
+
+          if (y > 0) {
+            matrixCtx.fillText(text, x, y);
+          }
+
+          if (y > height && Math.random() > 0.975) {
+            matrixDrops[i] = 0;
+          }
+          matrixDrops[i]++;
+        }
+      }
+
+      /* =======================================================================
+         3. INTERACTIVE CURSOR SPOTLIGHT
+         ======================================================================= */
+      window.addEventListener(
+        'mousemove',
+        (e) => {
+          document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+          document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+        },
+        { passive: true }
+      );
+
+      /* =======================================================================
+         4. INTRO & BOOT SEQUENCE CONTROLLER (Stage 1 -> Stage 2 -> Stage 3)
+         ======================================================================= */
+      const introScreen = document.getElementById('intro-screen');
+      const introMainText = document.getElementById('intro-main-text');
+      const introSubText = document.getElementById('intro-sub-text');
+      const bootPanel = document.getElementById('boot-panel');
+      const bootLogsEl = document.getElementById('boot-logs');
+      const bootProgressBar = document.getElementById('boot-progress-bar');
+      const bootPercentEl = document.getElementById('boot-percent');
+      const bootStageLabel = document.getElementById('boot-stage-label');
+      const desktopOS = document.getElementById('desktop-os');
+
+      const WELCOME_MAIN = 'Xin chào tôi là Nguyễn Khôi Nguyên';
+      const WELCOME_SUB = 'Welcome to my digital world... // Initializing system...';
+
+      const BOOT_STEPS = [
+        { pct: 12, label: 'Mounting kernel modules...', msg: '[ OK ] Loading neural_ui.sys & cyber_compositor.ko' },
+        { pct: 26, label: 'Mounting user workspace...', msg: '[ OK ] Mounting /home/nguyenkhoinguyen (ext4, encrypted)' },
+        { pct: 42, label: 'Starting Matrix Rain GPU shader...', msg: '[ OK ] Initializing matrix_engine — 60Hz Canvas Pipeline' },
+        { pct: 58, label: 'Verifying security protocols...', msg: '[ OK ] Verifying sandbox security protocols & TLS 1.3' },
+        { pct: 74, label: 'Loading Developer IDE & Bash Shell...', msg: '[ OK ] Attaching NKN_IDE & interactive TTY1 terminal' },
+        { pct: 89, label: 'Calibrating telemetry sensors...', msg: '[ OK ] Synchronizing live CPU/Neural monitor feed' },
+        { pct: 100, label: 'System ready. Launching NKN_OS...', msg: '[READY] Welcome, Nguyễn Khôi Nguyên. All systems operational.' },
+      ];
+
+      let activeTimers = [];
+      let hasBootedDesktop = false;
+
+      function schedule(fn, delay) {
+        const id = setTimeout(fn, delay);
+        activeTimers.push(id);
+        return id;
+      }
+
+      function clearAllIntroTimers() {
+        activeTimers.forEach((id) => clearTimeout(id));
+        activeTimers = [];
+      }
+
+      function typeText(element, text, speed, onDone) {
+        let index = 0;
+        element.textContent = '';
+
+        function step() {
+          if (index < text.length) {
+            element.textContent += text.charAt(index);
+            if (index % 2 === 0) audio.playKeyTick(580 + (index % 5) * 35);
+            index++;
+            const jitter = speed + Math.floor(Math.random() * 28 - 10);
+            schedule(step, Math.max(18, jitter));
+          } else if (onDone) {
+            onDone();
+          }
+        }
+        step();
+      }
+
+      function startBootSequence() {
+        bootPanel.classList.add('active');
+        bootLogsEl.innerHTML = '';
+        bootProgressBar.style.width = '0%';
+        bootPercentEl.textContent = '0%';
+
+        // Fade in Matrix Rain canvas smoothly during boot
+        if (matrixRunning) {
+          matrixCanvas.classList.add('visible');
+        }
+
+        const stepInterval = 290; // ~2.03s total for 7 steps
+        BOOT_STEPS.forEach((step, idx) => {
+          schedule(() => {
+            const line = document.createElement('div');
+            const isReady = step.msg.startsWith('[READY]');
+            line.innerHTML = isReady
+              ? `<span class="text-emerald-400 font-bold">${step.msg}</span>`
+              : `<span class="text-cyan-400 font-semibold">${step.msg.slice(0, 6)}</span><span class="text-slate-300">${step.msg.slice(6)}</span>`;
+            bootLogsEl.appendChild(line);
+            bootLogsEl.scrollTop = bootLogsEl.scrollHeight;
+
+            bootProgressBar.style.width = `${step.pct}%`;
+            bootPercentEl.textContent = `${step.pct}%`;
+            bootStageLabel.textContent = step.label;
+            audio.playKeyTick(760 + idx * 40);
+
+            if (idx === BOOT_STEPS.length - 1) {
+              schedule(() => revealDesktop(), 380);
+            }
+          }, idx * stepInterval);
+        });
+      }
+
+      function revealDesktop() {
+        clearAllIntroTimers();
+        introScreen.classList.add('fade-out');
+        if (matrixRunning) {
+          matrixCanvas.classList.add('visible');
+        }
+        desktopOS.classList.add('visible');
+        audio.playBootComplete();
+
+        // Staggered entrance for all 4 workstation windows
+        const windows = document.querySelectorAll('.cyber-window');
+        windows.forEach((win, i) => {
+          win.classList.remove('stagger-visible');
+          win.classList.add('stagger-hidden');
+          schedule(() => {
+            win.classList.remove('stagger-hidden');
+            win.classList.add('stagger-visible');
+          }, 120 + i * 140);
+        });
+
+        // Animate neon skill bars
+        schedule(() => {
+          document.querySelectorAll('.skill-fill').forEach((bar) => {
+            bar.style.width = bar.dataset.width || '85%';
+          });
+        }, 420);
+
+        // Initialize Terminal boot output once or on replay
+        schedule(() => {
+          if (!hasBootedDesktop) {
+            hasBootedDesktop = true;
+            bootTerminalOutput();
+          }
+          resizeTelemetryCanvas();
+        }, 500);
+      }
+
+      function runFullIntro() {
+        clearAllIntroTimers();
+        // Reset maximized windows if any
+        closeAllMaximized();
+
+        // Reset Intro UI
+        desktopOS.classList.remove('visible');
+        introScreen.classList.remove('fade-out');
+        bootPanel.classList.remove('active');
+        introMainText.textContent = '';
+        introSubText.textContent = '';
+        bootLogsEl.innerHTML = '';
+        bootProgressBar.style.width = '0%';
+        bootPercentEl.textContent = '0%';
+        matrixCanvas.classList.remove('visible');
+
+        // Reset skill bars for fresh animation
+        document.querySelectorAll('.skill-fill').forEach((bar) => {
+          bar.style.width = '0%';
+        });
+
+        // Stage 1: Type main Vietnamese greeting
+        schedule(() => {
+          typeText(introMainText, WELCOME_MAIN, 58, () => {
+            // Type secondary status line
+            schedule(() => {
+              typeText(introSubText, WELCOME_SUB, 26, () => {
+                // Stage 2: Launch OS Boot Sequence
+                schedule(() => startBootSequence(), 420);
+              });
+            }, 260);
+          });
+        }, 320);
+      }
+
+      /* =======================================================================
+         5. SOUND, MATRIX, SCANLINES & REPLAY CONTROLS
+         ======================================================================= */
+      const introSoundBtn = document.getElementById('intro-sound-btn');
+      const introSoundDot = document.getElementById('intro-sound-dot');
+      const introSoundLabel = document.getElementById('intro-sound-label');
+      const skipIntroBtn = document.getElementById('skip-intro-btn');
+
+      const toggleSoundBtn = document.getElementById('toggle-sound-btn');
+      const osSoundDot = document.getElementById('os-sound-dot');
+      const osSoundState = document.getElementById('os-sound-state');
+
+      const toggleMatrixBtn = document.getElementById('toggle-matrix-btn');
+      const osMatrixState = document.getElementById('os-matrix-state');
+
+      const toggleScanlineBtn = document.getElementById('toggle-scanline-btn');
+      const osScanlineState = document.getElementById('os-scanline-state');
+      const scanlinesOverlay = document.getElementById('scanlines-overlay');
+
+      const replayIntroBtn = document.getElementById('replay-intro-btn');
+
+      function syncSoundUI(isOn) {
+        introSoundLabel.textContent = isOn ? '[SOUND: ON]' : '[SOUND: OFF]';
+        introSoundDot.className = isOn
+          ? 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#00ff88]'
+          : 'w-2 h-2 rounded-full bg-slate-500';
+        osSoundState.textContent = isOn ? 'ON' : 'OFF';
+        osSoundDot.className = isOn
+          ? 'w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#00ff88]'
+          : 'w-1.5 h-1.5 rounded-full bg-slate-500';
+        toggleSoundBtn.classList.toggle('border-emerald-400/50', isOn);
+        toggleSoundBtn.classList.toggle('text-emerald-300', isOn);
+      }
+
+      introSoundBtn.addEventListener('click', () => {
+        const isOn = audio.toggle();
+        syncSoundUI(isOn);
+      });
+
+      toggleSoundBtn.addEventListener('click', () => {
+        const isOn = audio.toggle();
+        syncSoundUI(isOn);
+      });
+
+      skipIntroBtn.addEventListener('click', () => {
+        audio.playClick();
+        revealDesktop();
+      });
+
+      toggleMatrixBtn.addEventListener('click', () => {
+        audio.playClick();
+        matrixRunning = !matrixRunning;
+        matrixCanvas.classList.toggle('hidden-rain', !matrixRunning);
+        osMatrixState.textContent = matrixRunning ? 'ON' : 'OFF';
+        toggleMatrixBtn.classList.toggle('opacity-55', !matrixRunning);
+      });
+
+      let scanlinesOn = true;
+      toggleScanlineBtn.addEventListener('click', () => {
+        audio.playClick();
+        scanlinesOn = !scanlinesOn;
+        scanlinesOverlay.classList.toggle('off', !scanlinesOn);
+        osScanlineState.textContent = scanlinesOn ? 'ON' : 'OFF';
+        toggleScanlineBtn.classList.toggle('opacity-55', !scanlinesOn);
+      });
+
+      replayIntroBtn.addEventListener('click', () => {
+        audio.playClick();
+        runFullIntro();
+      });
+
+      /* Occasional subtle glitch pulse on brand title */
+      const brandGlitch = document.getElementById('brand-glitch');
+      setInterval(() => {
+        brandGlitch.classList.add('glitch-pulse');
+        setTimeout(() => brandGlitch.classList.remove('glitch-pulse'), 420);
+      }, 6500);
+
+      /* =======================================================================
+         6. LIVE SYSTEM CLOCK & UPTIME COUNTER
+         ======================================================================= */
+      const clockEl = document.getElementById('os-clock');
+      const uptimeEl = document.getElementById('os-uptime');
+      const bootTimestamp = Date.now();
+
+      function updateClockAndUptime() {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        clockEl.textContent = `${hh}:${mm}:${ss}`;
+
+        const diffSec = Math.floor((Date.now() - bootTimestamp) / 1000);
+        const upH = String(Math.floor(diffSec / 3600)).padStart(2, '0');
+        const upM = String(Math.floor((diffSec % 3600) / 60)).padStart(2, '0');
+        const upS = String(diffSec % 60).padStart(2, '0');
+        uptimeEl.textContent = `${upH}:${upM}:${upS}`;
+      }
+      updateClockAndUptime();
+      setInterval(updateClockAndUptime, 1000);
+
+      /* =======================================================================
+         7. WINDOW FOCUS, MINIMIZE & MAXIMIZE CONTROLS
+         ======================================================================= */
+      const allWindows = document.querySelectorAll('.cyber-window');
+      const maximizeBackdrop = document.getElementById('maximize-backdrop');
+
+      function focusWindow(win) {
+        allWindows.forEach((w) => w.classList.remove('window-focused'));
+        win.classList.add('window-focused');
+      }
+
+      function closeAllMaximized() {
+        allWindows.forEach((w) => w.classList.remove('maximized'));
+        maximizeBackdrop.classList.remove('active');
+        setTimeout(resizeTelemetryCanvas, 120);
+      }
+
+      maximizeBackdrop.addEventListener('click', () => {
+        audio.playClick();
+        closeAllMaximized();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAllMaximized();
+      });
+
+      allWindows.forEach((win) => {
+        win.addEventListener('mousedown', () => focusWindow(win));
+
+        const minBtn = win.querySelector('[data-action="minimize"]');
+        const maxBtn = win.querySelector('[data-action="maximize"]');
+
+        if (minBtn) {
+          minBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.playClick();
+            if (win.classList.contains('maximized')) {
+              closeAllMaximized();
+            }
+            win.classList.toggle('minimized');
+          });
+        }
+
+        if (maxBtn) {
+          maxBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audio.playClick();
+            const isMax = win.classList.contains('maximized');
+            closeAllMaximized();
+            win.classList.remove('minimized');
+            if (!isMax) {
+              win.classList.add('maximized');
+              maximizeBackdrop.classList.add('active');
+              focusWindow(win);
+            }
+            setTimeout(resizeTelemetryCanvas, 150);
+          });
+        }
+      });
+
+      /* =======================================================================
+         8. INTERACTIVE TERMINAL (bash — nkn@cyber-os:~)
+         ======================================================================= */
+      const terminalOutput = document.getElementById('terminal-output');
+      const terminalForm = document.getElementById('terminal-form');
+      const terminalInput = document.getElementById('terminal-input');
+      const commandHistory = [];
+      let historyIndex = -1;
+
+      function escapeHTML(str) {
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      function appendTerminalHTML(html) {
+        const block = document.createElement('div');
+        block.innerHTML = html;
+        terminalOutput.appendChild(block);
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+      }
+
+      function getNeofetchHTML() {
+        return `
+          <div class="flex flex-col sm:flex-row gap-3 sm:gap-5 py-1">
+            <pre class="text-cyan-400 text-[10px] sm:text-[11px] leading-tight font-bold select-none">
+ _   _ _  ___   _
+| \\ | | |/ / \\ | |
+|  \\| | ' /|  \\| |
+| |\\  | . \\| |\\  |
+|_| \\_|_|\\_\\_| \\_|
+  [CYBER_OS v2.6]</pre>
+            <div class="text-xs space-y-0.5">
+              <div><span class="text-emerald-400 font-bold">nkn</span><span class="text-slate-400">@</span><span class="text-cyan-400 font-bold">cyber-os</span></div>
+              <div class="text-slate-600">------------------------</div>
+              <div><span class="text-cyan-400">USER:</span> <span class="text-white">Nguyen Khoi Nguyen</span></div>
+              <div><span class="text-cyan-400">ROLE:</span> <span class="text-purple-300">Developer</span></div>
+              <div><span class="text-cyan-400">OS:</span> NKN_OS x86_64 (WebKit Engine)</div>
+              <div><span class="text-cyan-400">SHELL:</span> cyber-bash 5.2.15</div>
+              <div><span class="text-cyan-400">STATUS:</span> <span class="text-emerald-400">ONLINE // All systems operational</span></div>
+              <div class="pt-1 flex gap-1.5">
+                <span class="w-3 h-3 rounded-sm bg-cyan-400 inline-block"></span>
+                <span class="w-3 h-3 rounded-sm bg-emerald-400 inline-block"></span>
+                <span class="w-3 h-3 rounded-sm bg-purple-400 inline-block"></span>
+                <span class="w-3 h-3 rounded-sm bg-amber-400 inline-block"></span>
+                <span class="w-3 h-3 rounded-sm bg-rose-400 inline-block"></span>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function bootTerminalOutput() {
+        terminalOutput.innerHTML = '';
+        appendTerminalHTML(
+          `<div class="text-slate-400 text-[11px]">Last login: ${new Date().toLocaleString('vi-VN')} on tty1</div>`
+        );
+        appendTerminalHTML(
+          `<div><span class="text-emerald-400">nkn@cyber-os</span>:<span class="text-cyan-400">~</span>$ <span class="text-white">neofetch --boot</span></div>`
+        );
+        appendTerminalHTML(getNeofetchHTML());
+        appendTerminalHTML(
+          `<div class="text-slate-400 text-xs pt-1">Gõ <span class="text-cyan-300 font-semibold">help</span> hoặc nhấn các nút lệnh nhanh ở trên để khám phá hệ thống.</div>`
+        );
+      }
+
+      function executeCommand(rawCmd) {
+        const cmd = rawCmd.trim();
+        if (!cmd) return;
+
+        commandHistory.push(cmd);
+        historyIndex = commandHistory.length;
+
+        appendTerminalHTML(
+          `<div><span class="text-emerald-400">nkn@cyber-os</span>:<span class="text-cyan-400">~</span>$ <span class="text-white">${escapeHTML(cmd)}</span></div>`
+        );
+
+        const lower = cmd.toLowerCase();
+        audio.playKeyTick(720);
+
+        switch (lower) {
+          case 'help':
+            appendTerminalHTML(`
+              <div class="pl-2 border-l-2 border-cyan-500/40 space-y-1 text-xs">
+                <div class="text-cyan-300 font-semibold mb-1">DANH SÁCH LỆNH HỆ THỐNG (AVAILABLE COMMANDS):</div>
+                <div><span class="text-emerald-400 font-semibold w-24 inline-block">help</span> — Hiển thị bảng hướng dẫn lệnh</div>
+                <div><span class="text-emerald-400 font-semibold w-24 inline-block">about</span> — Thông tin cá nhân &amp; triết lý công nghệ</div>
+                <div><span class="text-emerald-400 font-semibold w-24 inline-block">skills</span> — Danh sách kỹ năng lập trình &amp; thiết kế</div>
+                <div><span class="text-emerald-400 font-semibold w-24 inline-block">projects</span> — Các dự án phần mềm tiêu biểu</div>
+                <div><span class="text-emerald-400 font-semibold w-24 inline-block">neofetch</span> — Hiển thị thông số hệ thống NKN_OS</div>
+                <div><span class="text-emerald-400 font-semibold w-24 inline-block">matrix</span> — Thay đổi cường độ mưa ma trận Matrix Rain</div>
+                <div><span class="text-emerald-400 font-semibold w-24 inline-block">clear</span> — Xóa màn hình Terminal</div>
+                <div><span class="text-emerald-400 font-semibold w-24 inline-block">reboot</span> — Khởi động lại toàn bộ màn hình Intro</div>
+              </div>
+            `);
+            break;
+
+          case 'about':
+            appendTerminalHTML(`
+              <div class="pl-2 border-l-2 border-emerald-500/50 space-y-1.5 text-xs">
+                <div class="text-white font-semibold">Nguyễn Khôi Nguyên — Developer &amp; Tech Enthusiast</div>
+                <div class="text-slate-300">Đam mê Lập trình, Công nghệ và Khoa học Máy tính. Tập trung xây dựng các sản phẩm phần mềm hiện đại, tối ưu hiệu suất và có trải nghiệm người dùng xuất sắc.</div>
+                <div class="text-cyan-300 italic">"Không ngừng học hỏi. Không ngừng sáng tạo. Kiến tạo tương lai bằng công nghệ."</div>
+              </div>
+            `);
+            break;
+
+          case 'skills':
+            appendTerminalHTML(`
+              <div class="pl-2 border-l-2 border-purple-500/50 space-y-1 text-xs">
+                <div class="text-purple-300 font-semibold">TECHNICAL STACK // LOADED MODULES:</div>
+                <div><span class="text-cyan-400">[Frontend]</span> HTML5, CSS3, Modern JavaScript (ES6+), Tailwind CSS, UI/UX Architecture</div>
+                <div><span class="text-emerald-400">[Core CS ]</span> Python, C++, Data Structures &amp; Algorithms, Problem Solving</div>
+                <div><span class="text-amber-300">[Tools   ]</span> Git, Linux CLI, VS Code, Web Performance &amp; Canvas Graphics</div>
+              </div>
+            `);
+            break;
+
+          case 'projects':
+            appendTerminalHTML(`
+              <div class="pl-2 border-l-2 border-cyan-500/50 space-y-2 text-xs">
+                <div class="text-cyan-300 font-semibold">FEATURED PROJECTS // WORKSPACE:</div>
+                <div>
+                  <span class="text-emerald-400 font-semibold">01. NKN_OS Cyberpunk Portfolio</span>
+                  <div class="text-slate-400 pl-4">Giao diện máy trạm lập trình viên tương tác với Terminal, IDE &amp; Telemetry thời gian thực.</div>
+                </div>
+                <div>
+                  <span class="text-emerald-400 font-semibold">02. AlgoViz — Algorithm Visualizer</span>
+                  <div class="text-slate-400 pl-4">Công cụ trực quan hóa thuật toán tìm đường (A*, Dijkstra) và sắp xếp ở tốc độ 60fps.</div>
+                </div>
+                <div>
+                  <span class="text-emerald-400 font-semibold">03. PyNeural — Lightweight AI Toolkit</span>
+                  <div class="text-slate-400 pl-4">Thư viện Python thực nghiệm mô phỏng mạng nơ-ron và phân tích dữ liệu tốc độ cao.</div>
+                </div>
+              </div>
+            `);
+            break;
+
+          case 'neofetch':
+            appendTerminalHTML(getNeofetchHTML());
+            break;
+
+          case 'matrix':
+            if (!matrixRunning) {
+              matrixRunning = true;
+              matrixCanvas.classList.remove('hidden-rain');
+              osMatrixState.textContent = 'ON';
+              toggleMatrixBtn.classList.remove('opacity-55');
+            }
+            matrixIntense = !matrixIntense;
+            matrixCanvas.classList.toggle('intense', matrixIntense);
+            appendTerminalHTML(
+              `<div class="text-emerald-300 text-xs">[MATRIX] Đã chuyển chế độ Matrix Rain sang: <span class="font-bold text-white">${matrixIntense ? 'OVERDRIVE (Cao)' : 'BALANCED (Cân bằng)'}</span></div>`
+            );
+            break;
+
+          case 'clear':
+            terminalOutput.innerHTML = '';
+            break;
+
+          case 'reboot':
+            appendTerminalHTML(
+              `<div class="text-amber-300 text-xs">[SYS] Rebooting NKN_OS... Đang khởi động lại hệ thống...</div>`
+            );
+            setTimeout(() => runFullIntro(), 600);
+            break;
+
+          default:
+            appendTerminalHTML(
+              `<div class="text-rose-400 text-xs">bash: ${escapeHTML(cmd)}: command not found. Gõ <span class="text-cyan-300 font-semibold">help</span> để xem các lệnh hợp lệ.</div>`
+            );
+            break;
+        }
+      }
+
+      terminalForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const val = terminalInput.value;
+        terminalInput.value = '';
+        executeCommand(val);
+      });
+
+      terminalInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (historyIndex > 0) {
+            historyIndex--;
+            terminalInput.value = commandHistory[historyIndex];
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (historyIndex < commandHistory.length - 1) {
+            historyIndex++;
+            terminalInput.value = commandHistory[historyIndex];
+          } else {
+            historyIndex = commandHistory.length;
+            terminalInput.value = '';
+          }
+        }
+      });
+
+      terminalOutput.addEventListener('click', () => terminalInput.focus());
+
+      document.querySelectorAll('.cmd-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          audio.playClick();
+          const cmd = chip.dataset.cmd;
+          executeCommand(cmd);
+          focusWindow(document.getElementById('win-terminal'));
+        });
+      });
+
+      /* =======================================================================
+         9. CYBER CODE EDITOR (NKN_IDE) WITH SYNTAX HIGHLIGHTING & RUNNER
+         ======================================================================= */
+      const CODE_FILES = {
+        'developer.py': {
+          lang: 'Python 3.12',
+          lines: [
+            `<span class="tok-com"># -*- coding: utf-8 -*-</span>`,
+            `<span class="tok-com"># Profile Definition for Nguyen Khoi Nguyen</span>`,
+            `<span class="tok-kw">class</span> <span class="tok-cls">Developer</span>:`,
+            `    <span class="tok-kw">def</span> <span class="tok-fn">__init__</span>(<span class="tok-prop">self</span>):`,
+            `        <span class="tok-prop">self</span>.name = <span class="tok-str">"Nguyễn Khôi Nguyên"</span>`,
+            `        <span class="tok-prop">self</span>.role = <span class="tok-str">"Developer"</span>`,
+            `        <span class="tok-prop">self</span>.status = <span class="tok-str">"ONLINE"</span>`,
+            `        <span class="tok-prop">self</span>.interests = [<span class="tok-str">"Programming"</span>, <span class="tok-str">"Technology"</span>, <span class="tok-str">"Computer Science"</span>]`,
+            `        <span class="tok-prop">self</span>.motto = <span class="tok-str">"Không ngừng học hỏi. Không ngừng sáng tạo."</span>`,
+            ``,
+            `    <span class="tok-kw">def</span> <span class="tok-fn">build_future</span>(<span class="tok-prop">self</span>, innovation_level=<span class="tok-num">100</span>):`,
+            `        <span class="tok-kw">return</span> <span class="tok-str">f"[OK] {self.name} đang kiến tạo tương lai ({innovation_level}%)"</span>`,
+            ``,
+            `<span class="tok-kw">if</span> __name__ == <span class="tok-str">"__main__"</span>:`,
+            `    nkn = <span class="tok-cls">Developer</span>()`,
+            `    <span class="tok-fn">print</span>(nkn.<span class="tok-fn">build_future</span>(<span class="tok-num">100</span>))`,
+          ],
+          runCmd: 'python3 developer.py',
+          runOutput: [
+            `<span class="text-emerald-400">[OK] Nguyễn Khôi Nguyên đang kiến tạo tương lai (100%)</span>`,
+            `<span class="text-slate-400">Process finished with exit code 0 (0.014s)</span>`,
+          ],
+        },
+        'core_engine.js': {
+          lang: 'JavaScript ES2025',
+          lines: [
+            `<span class="tok-com">// NKN_OS Interactive UI & System Boot Controller</span>`,
+            `<span class="tok-kw">const</span> <span class="tok-prop">SYSTEM_CONFIG</span> = {`,
+            `  <span class="tok-prop">owner</span>: <span class="tok-str">'Nguyen Khoi Nguyen'</span>,`,
+            `  <span class="tok-prop">theme</span>: <span class="tok-str">'CYBERPUNK_NEON'</span>,`,
+            `  <span class="tok-prop">fpsTarget</span>: <span class="tok-num">60</span>,`,
+            `  <span class="tok-prop">modules</span>: [<span class="tok-str">'MatrixRain'</span>, <span class="tok-str">'Terminal'</span>, <span class="tok-str">'Telemetry'</span>],`,
+            `};`,
+            ``,
+            `<span class="tok-kw">async function</span> <span class="tok-fn">initializeWorkspace</span>(config) {`,
+            `  <span class="tok-kw">const</span> status = <span class="tok-kw">await</span> <span class="tok-cls">Promise</span>.<span class="tok-fn">resolve</span>(<span class="tok-str">'ALL_SYSTEMS_OPERATIONAL'</span>);`,
+            `  <span class="tok-prop">console</span>.<span class="tok-fn">log</span>(<span class="tok-str">\`[NKN_OS] \${config.owner} :: \${status}\`</span>);`,
+            `  <span class="tok-kw">return</span> { <span class="tok-prop">ready</span>: <span class="tok-kw">true</span>, <span class="tok-prop">latencyMs</span>: <span class="tok-num">11</span> };`,
+            `}`,
+            ``,
+            `<span class="tok-fn">initializeWorkspace</span>(<span class="tok-prop">SYSTEM_CONFIG</span>);`,
+          ],
+          runCmd: 'node core_engine.js',
+          runOutput: [
+            `<span class="text-cyan-300">[NKN_OS] Nguyen Khoi Nguyen :: ALL_SYSTEMS_OPERATIONAL</span>`,
+            `<span class="text-emerald-400">{ ready: true, latencyMs: 11, modulesLoaded: 3 }</span>`,
+          ],
+        },
+        'interface.html': {
+          lang: 'HTML5 Semantic',
+          lines: [
+            `<span class="tok-com">&lt;!-- Cyberpunk Developer Identity Component --&gt;</span>`,
+            `<span class="tok-tag">&lt;section</span> <span class="tok-prop">class</span>=<span class="tok-str">"cyber-card neon-border"</span><span class="tok-tag">&gt;</span>`,
+            `  <span class="tok-tag">&lt;header</span> <span class="tok-prop">class</span>=<span class="tok-str">"card-header"</span><span class="tok-tag">&gt;</span>`,
+            `    <span class="tok-tag">&lt;span</span> <span class="tok-prop">class</span>=<span class="tok-str">"status-dot online"</span><span class="tok-tag">&gt;&lt;/span&gt;</span>`,
+            `    <span class="tok-tag">&lt;h2&gt;</span>Nguyễn Khôi Nguyên<span class="tok-tag">&lt;/h2&gt;</span>`,
+            `  <span class="tok-tag">&lt;/header&gt;</span>`,
+            `  <span class="tok-tag">&lt;p</span> <span class="tok-prop">class</span>=<span class="tok-str">"manifesto"</span><span class="tok-tag">&gt;</span>`,
+            `    Kiến tạo tương lai bằng công nghệ.`,
+            `  <span class="tok-tag">&lt;/p&gt;</span>`,
+            `<span class="tok-tag">&lt;/section&gt;</span>`,
+          ],
+          runCmd: 'lint-html interface.html --strict',
+          runOutput: [
+            `<span class="text-emerald-400">[PASS] interface.html validated — 0 errors, 0 accessibility warnings.</span>`,
+            `<span class="text-purple-300">[DOM] Component mounted to Cyberpunk Viewport successfully.</span>`,
+          ],
+        },
+        'neon_theme.css': {
+          lang: 'CSS3 Variables',
+          lines: [
+            `<span class="tok-com">/* Cyberpunk Glassmorphism &amp; Neon Glow Tokens */</span>`,
+            `<span class="tok-fn">:root</span> {`,
+            `  <span class="tok-prop">--bg-void</span>: <span class="tok-str">#04060c</span>;`,
+            `  <span class="tok-prop">--neon-cyan</span>: <span class="tok-str">#00e5ff</span>;`,
+            `  <span class="tok-prop">--neon-green</span>: <span class="tok-str">#00ff88</span>;`,
+            `  <span class="tok-prop">--neon-purple</span>: <span class="tok-str">#a855f7</span>;`,
+            `}`,
+            ``,
+            `<span class="tok-cls">.cyber-window</span> {`,
+            `  <span class="tok-prop">background</span>: <span class="tok-fn">rgba</span>(<span class="tok-num">9</span>, <span class="tok-num">14</span>, <span class="tok-num">28</span>, <span class="tok-num">0.8</span>);`,
+            `  <span class="tok-prop">backdrop-filter</span>: <span class="tok-fn">blur</span>(<span class="tok-num">14px</span>);`,
+            `  <span class="tok-prop">border</span>: <span class="tok-num">1px</span> solid <span class="tok-fn">rgba</span>(<span class="tok-num">0</span>, <span class="tok-num">229</span>, <span class="tok-num">255</span>, <span class="tok-num">0.35</span>);`,
+            `  <span class="tok-prop">box-shadow</span>: <span class="tok-num">0</span> <span class="tok-num">0</span> <span class="tok-num">24px</span> <span class="tok-fn">rgba</span>(<span class="tok-num">0</span>, <span class="tok-num">229</span>, <span class="tok-num">255</span>, <span class="tok-num">0.15</span>);`,
+            `}`,
+          ],
+          runCmd: 'style-compiler --verify neon_theme.css',
+          runOutput: [
+            `<span class="text-cyan-300">[CSS] Compiled 4 neon tokens &amp; glassmorphism layers in 4ms.</span>`,
+            `<span class="text-emerald-400">[GPU] Hardware acceleration active (60fps verified).</span>`,
+          ],
+        },
+      };
+
+      let activeTabName = 'developer.py';
+      const codeDisplay = document.getElementById('code-display');
+      const editorLangEl = document.getElementById('editor-lang');
+      const editorTabButtons = document.querySelectorAll('.editor-tab');
+      const runCodeBtn = document.getElementById('run-code-btn');
+
+      function renderCodeTab(tabName) {
+        activeTabName = tabName;
+        const file = CODE_FILES[tabName];
+        if (!file) return;
+
+        editorLangEl.textContent = file.lang;
+        codeDisplay.innerHTML = file.lines
+          .map(
+            (lineHTML, i) => `
+            <div class="code-line">
+              <span class="line-num">${i + 1}</span>
+              <span class="whitespace-pre">${lineHTML || '&nbsp;'}</span>
+            </div>`
+          )
+          .join('');
+
+        editorTabButtons.forEach((btn) => {
+          const isActive = btn.dataset.tab === tabName;
+          btn.classList.toggle('border-cyan-500/40', isActive);
+          btn.classList.toggle('bg-slate-900/90', isActive);
+          btn.classList.toggle('text-cyan-300', isActive);
+          btn.classList.toggle('border-transparent', !isActive);
+          btn.classList.toggle('text-slate-400', !isActive);
+        });
+      }
+
+      editorTabButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          audio.playClick();
+          renderCodeTab(btn.dataset.tab);
+        });
+      });
+
+      runCodeBtn.addEventListener('click', () => {
+        audio.playChime();
+        const file = CODE_FILES[activeTabName];
+        if (!file) return;
+
+        const termWin = document.getElementById('win-terminal');
+        termWin.classList.remove('minimized');
+        focusWindow(termWin);
+
+        appendTerminalHTML(
+          `<div><span class="text-emerald-400">nkn@cyber-os</span>:<span class="text-cyan-400">~/workspace</span>$ <span class="text-amber-300">${escapeHTML(file.runCmd)}</span></div>`
+        );
+        file.runOutput.forEach((line) => {
+          appendTerminalHTML(`<div class="pl-2 text-xs">${line}</div>`);
+        });
+      });
+
+      renderCodeTab('developer.py');
+
+      /* =======================================================================
+         10. LIVE TELEMETRY WAVEFORM CANVAS & SYSTEM EVENT FEED
+         ======================================================================= */
+      const telemetryCanvas = document.getElementById('telemetry-canvas');
+      const telemetryWrap = document.getElementById('telemetry-canvas-wrap');
+      const tCtx = telemetryCanvas.getContext('2d');
+
+      const DATA_POINTS = 48;
+      const cpuHistory = Array.from({ length: DATA_POINTS }, () => 24 + Math.random() * 18);
+      const neuralHistory = Array.from({ length: DATA_POINTS }, () => 45 + Math.random() * 20);
+
+      const metricCpu = document.getElementById('metric-cpu');
+      const metricRam = document.getElementById('metric-ram');
+      const metricPing = document.getElementById('metric-ping');
+      const metricThreads = document.getElementById('metric-threads');
+      const liveEventFeed = document.getElementById('live-event-feed');
+
+      function resizeTelemetryCanvas() {
+        if (!telemetryWrap) return;
+        const rect = telemetryWrap.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        telemetryCanvas.width = Math.floor(rect.width * dpr);
+        telemetryCanvas.height = Math.floor(rect.height * dpr);
+        tCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawTelemetryGraph();
+      }
+
+      function drawSmoothLine(data, color, fillColor, width, height) {
+        const stepX = width / (data.length - 1);
+
+        tCtx.beginPath();
+        data.forEach((val, idx) => {
+          const x = idx * stepX;
+          const y = height - (val / 100) * (height - 14) - 7;
+          if (idx === 0) tCtx.moveTo(x, y);
+          else tCtx.lineTo(x, y);
+        });
+
+        tCtx.strokeStyle = color;
+        tCtx.lineWidth = 2;
+        tCtx.shadowColor = color;
+        tCtx.shadowBlur = 8;
+        tCtx.stroke();
+        tCtx.shadowBlur = 0;
+
+        // Subtle area gradient beneath curve
+        tCtx.lineTo(width, height);
+        tCtx.lineTo(0, height);
+        tCtx.closePath();
+        tCtx.fillStyle = fillColor;
+        tCtx.fill();
+      }
+
+      function drawTelemetryGraph() {
+        const rect = telemetryWrap.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+        if (!width || !height) return;
+
+        tCtx.clearRect(0, 0, width, height);
+
+        // Background horizontal reference grid
+        tCtx.strokeStyle = 'rgba(0, 229, 255, 0.08)';
+        tCtx.lineWidth = 1;
+        for (let i = 1; i <= 3; i++) {
+          const y = (height / 4) * i;
+          tCtx.beginPath();
+          tCtx.moveTo(0, y);
+          tCtx.lineTo(width, y);
+          tCtx.stroke();
+        }
+
+        const cyanGrad = tCtx.createLinearGradient(0, 0, 0, height);
+        cyanGrad.addColorStop(0, 'rgba(0, 229, 255, 0.22)');
+        cyanGrad.addColorStop(1, 'rgba(0, 229, 255, 0.0)');
+
+        const greenGrad = tCtx.createLinearGradient(0, 0, 0, height);
+        greenGrad.addColorStop(0, 'rgba(0, 255, 136, 0.18)');
+        greenGrad.addColorStop(1, 'rgba(0, 255, 136, 0.0)');
+
+        drawSmoothLine(neuralHistory, '#00ff88', greenGrad, width, height);
+        drawSmoothLine(cpuHistory, '#00e5ff', cyanGrad, width, height);
+      }
+
+      function tickTelemetry() {
+        const lastCpu = cpuHistory[cpuHistory.length - 1];
+        const nextCpu = Math.max(12, Math.min(68, lastCpu + (Math.random() * 12 - 6)));
+        cpuHistory.shift();
+        cpuHistory.push(nextCpu);
+
+        const lastNeural = neuralHistory[neuralHistory.length - 1];
+        const nextNeural = Math.max(32, Math.min(88, lastNeural + (Math.random() * 14 - 7)));
+        neuralHistory.shift();
+        neuralHistory.push(nextNeural);
+
+        metricCpu.textContent = `${nextCpu.toFixed(1)}%`;
+        metricRam.textContent = `${(5.8 + (nextNeural / 100) * 1.4).toFixed(1)} / 16 GB`;
+        metricPing.textContent = `${Math.floor(8 + Math.random() * 9)} ms`;
+        metricThreads.textContent = `${Math.floor(120 + (nextCpu / 3))}`;
+
+        drawTelemetryGraph();
+      }
+
+      const SIMULATED_LOGS = [
+        { tag: '[OK]', color: 'text-emerald-400', text: 'Rendered frame buffer @ 60.0 FPS' },
+        { tag: '[INFO]', color: 'text-cyan-400', text: 'Syncing portfolio modules (user_profile.sys)' },
+        { tag: '[SYS]', color: 'text-purple-400', text: 'Sandbox firewall nominal — 0 threats' },
+        { tag: '[OK]', color: 'text-emerald-400', text: 'Matrix shader memory optimized' },
+        { tag: '[INFO]', color: 'text-cyan-400', text: 'IDE syntax engine idle (0 warnings)' },
+        { tag: '[SYS]', color: 'text-amber-300', text: 'Garbage collection completed in 1.2ms' },
+        { tag: '[OK]', color: 'text-emerald-400', text: 'Heartbeat verified: NKN_OS ONLINE' },
+      ];
+      let logCursor = 0;
+
+      function pushSystemLog() {
+        const item = SIMULATED_LOGS[logCursor % SIMULATED_LOGS.length];
+        logCursor++;
+        const now = new Date();
+        const ts = now.toTimeString().slice(0, 8);
+        const row = document.createElement('div');
+        row.className = 'truncate';
+        row.innerHTML = `<span class="text-slate-500">${ts}</span> <span class="${item.color} font-semibold">${item.tag}</span> <span>${item.text}</span>`;
+        liveEventFeed.appendChild(row);
+
+        while (liveEventFeed.children.length > 7) {
+          liveEventFeed.removeChild(liveEventFeed.firstChild);
+        }
+        liveEventFeed.scrollTop = liveEventFeed.scrollHeight;
+      }
+
+      /* =======================================================================
+         11. INITIALIZATION & RESIZE LISTENERS
+         ======================================================================= */
+      window.addEventListener('resize', () => {
+        resizeMatrixCanvas();
+        resizeTelemetryCanvas();
+      });
+
+      window.addEventListener('load', () => {
+        resizeMatrixCanvas();
+        requestAnimationFrame(renderMatrixRain);
+
+        // Seed initial telemetry logs
+        for (let i = 0; i < 4; i++) pushSystemLog();
+        setInterval(tickTelemetry, 750);
+        setInterval(pushSystemLog, 2800);
+
+        // Launch Stage 1 -> Stage 2 -> Stage 3
+        runFullIntro();
+      });
+    })();
+  </script>
+</body>
+</html>
